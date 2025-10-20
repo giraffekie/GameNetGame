@@ -64,21 +64,11 @@ namespace Resources.General.Scripts
             {
                 await System.Threading.Tasks.Task.Delay(50);
             }
-
-            var playerInfoSender = FindFirstObjectByType<PlayerInfoSender>();
-            if (playerInfoSender != null)
-            {
-                playerInfoSender.SendUsername();
-            }
-            else
-            {
-                Debug.LogWarning("No PlayerInfoSender found in the scene!");
-            }
         }
 
 
         #region INetworkRunnerCallbacks (empty)
-        public void OnPlayerJoined(NetworkRunner runner, PlayerRef player) { }
+        public void OnPlayerJoined(NetworkRunner runner, PlayerRef player){ }
         public void OnPlayerLeft(NetworkRunner runner, PlayerRef player) { }
         public void OnInput(NetworkRunner runner, NetworkInput input) { }
         public void OnInputMissing(NetworkRunner runner, PlayerRef player, NetworkInput input) { }

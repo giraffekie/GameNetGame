@@ -6,6 +6,7 @@ namespace Resources.MainMenu.Scripts
     public static class AuthManager
     {
         private const string ACCOUNTS_KEY = "SavedAccounts";
+        private const string CURRENT_USER_KEY = "CurrentUser";
         
         [System.Serializable]
         private class AccountList
@@ -18,6 +19,27 @@ namespace Resources.MainMenu.Scripts
         {
             public string username;
             public string password;
+        }
+        
+        /// <summary>
+        /// Gets a ParrelSync-aware key that includes the clone name if applicable
+        /// </summary>
+        private static string GetCloneAwareKey(string baseKey)
+        {
+            #if UNITY_EDITOR
+            // Check if ParrelSync is available and we're running in a clone
+            if (ParrelSync.ClonesManager.IsClone())
+            {
+                string cloneName = ParrelSync.ClonesManager.GetCurrentProjectPath();
+                // Extract just the folder name from the full path
+                string cloneFolderName = System.IO.Path.GetFileName(cloneName);
+                if (!string.IsNullOrEmpty(cloneFolderName))
+                {
+                    return $"{baseKey}_{cloneFolderName}";
+                }
+            }
+            #endif
+            return baseKey;
         }
         
         /// <summary>
@@ -42,7 +64,41 @@ namespace Resources.MainMenu.Scripts
         public static bool Login(string username, string password)
         {
             AccountList list = LoadAccounts();
-            return list.accounts.Exists(a => a.username == username && a.password == password);
+            bool success = list.accounts.Exists(a => a.username == username && a.password == password);
+            
+            if (success)
+            {
+                // Store the current logged-in user with clone-aware key
+                string currentUserKey = GetCloneAwareKey(CURRENT_USER_KEY);
+                PlayerPrefs.SetString(currentUserKey, username);
+                PlayerPrefs.Save();
+                
+                Debug.Log($"[AuthManager] Logged in as {username} with key: {currentUserKey}");
+            }
+            
+            return success;
+        }
+        
+        /// <summary>
+        /// Gets the currently logged-in username
+        /// </summary>
+        public static string GetCurrentUser()
+        {
+            string currentUserKey = GetCloneAwareKey(CURRENT_USER_KEY);
+            string username = PlayerPrefs.GetString(currentUserKey, "");
+            
+            Debug.Log($"[AuthManager] Retrieved user: {username} from key: {currentUserKey}");
+            return username;
+        }
+        
+        /// <summary>
+        /// Logs out the current user
+        /// </summary>
+        public static void Logout()
+        {
+            string currentUserKey = GetCloneAwareKey(CURRENT_USER_KEY);
+            PlayerPrefs.DeleteKey(currentUserKey);
+            PlayerPrefs.Save();
         }
         
         private static void SaveAccounts(AccountList list)
@@ -58,6 +114,5 @@ namespace Resources.MainMenu.Scripts
             AccountList list = JsonUtility.FromJson<AccountList>(json);
             return list ?? new AccountList();
         }
-        
     }
 }

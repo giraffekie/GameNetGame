@@ -2,7 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using Fusion;
-using TMPro;
+using Resources.MainMenu.Scripts;
 using UnityEngine;
 
 namespace Resources.Fusion.Scripts
@@ -12,8 +12,6 @@ namespace Resources.Fusion.Scripts
         public static PlayerInfoSender Instance;
         private Dictionary<PlayerRef, string> _joinedPlayers = new Dictionary<PlayerRef, string>();
 
-        [SerializeField] private TMP_InputField usernameInput;
-
         /// <summary>
         /// Event fired when a player joins
         /// </summary>
@@ -21,7 +19,10 @@ namespace Resources.Fusion.Scripts
 
         private void Awake()
         {
-            if (Instance == null) Instance = this;
+            if (Instance == null)
+            {
+                Instance = this;
+            }
             else
             {
                 Destroy(gameObject);
@@ -32,15 +33,14 @@ namespace Resources.Fusion.Scripts
         public override void Spawned()
         {
             base.Spawned();
-            if (!Runner.IsServer && !Runner.IsClient)
-                return;
-
+            Debug.Log($"[PlayerInfoSender] Spawned for player {Runner.LocalPlayer}, Object: {gameObject.name}");
+            
             // Send username automatically after Spawned
             SendUsername();
         }
 
         /// <summary>
-        /// Called by UI button when player clicks "Submit Username"
+        /// Called to send username (now automatically called in Spawned)
         /// </summary>
         public void SendUsername()
         {
@@ -55,10 +55,21 @@ namespace Resources.Fusion.Scripts
                 yield return null;
             }
 
-            string username = usernameInput.text;
+            // Get username from AuthManager
+            string username = AuthManager.GetCurrentUser();
+            
+            // If no username found, use a default based on player ID
             if (string.IsNullOrEmpty(username))
+            {
                 username = $"Player_{Runner.LocalPlayer.PlayerId}";
+                Debug.Log($"[PlayerInfoSender] No stored username found, using default: {username}");
+            }
+            else
+            {
+                Debug.Log($"[PlayerInfoSender] Using stored username: {username}");
+            }
 
+            Debug.Log($"[PlayerInfoSender] Sending username: {username} for player {Runner.LocalPlayer}");
             RPC_SendUserInfo(username);
         }
 
@@ -74,6 +85,16 @@ namespace Resources.Fusion.Scripts
 
             Debug.Log($"[PlayerInfoSender] Player {player.PlayerId} set username: {username}");
 
+            // Store player info
+            if (!_joinedPlayers.ContainsKey(player))
+            {
+                _joinedPlayers.Add(player, username);
+            }
+            else
+            {
+                _joinedPlayers[player] = username;
+            }
+
             // Broadcast join to all clients
             RPC_BroadcastPlayerJoined(player, username);
         }
@@ -86,8 +107,30 @@ namespace Resources.Fusion.Scripts
         {
             Debug.Log($"[PlayerInfoSender] Broadcasted player joined: {username}, ID: ({player.PlayerId})");
 
+            // Store locally as well
+            if (!_joinedPlayers.ContainsKey(player))
+            {
+                _joinedPlayers.Add(player, username);
+            }
+
             // Fire the C# event for anyone listening
-            OnPlayerJoined?.Invoke(player, username, null); // null for PlayerObject for now
+            OnPlayerJoined?.Invoke(player, username, null);
+        }
+
+        /// <summary>
+        /// Get username for a specific player
+        /// </summary>
+        public string GetPlayerUsername(PlayerRef player)
+        {
+            return _joinedPlayers.ContainsKey(player) ? _joinedPlayers[player] : $"Player_{player.PlayerId}";
+        }
+
+        /// <summary>
+        /// Get all joined players
+        /// </summary>
+        public Dictionary<PlayerRef, string> GetAllPlayers()
+        {
+            return new Dictionary<PlayerRef, string>(_joinedPlayers);
         }
     }
 }

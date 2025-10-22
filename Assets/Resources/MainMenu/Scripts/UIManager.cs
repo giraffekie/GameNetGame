@@ -114,19 +114,23 @@ namespace Resources.MainMenu.Scripts
                 Debug.Log($"Login success for {username}");
                 ClearLoginError();
 
+                // Store username immediately
+                string loggedInUser = AuthManager.GetCurrentUser();
+                Debug.Log($"[UIManager] Stored user: {loggedInUser}");
+
                 // Determine which login button was clicked
                 if (clickedButton == loginButtons[0])
                 {
                     GameManager.Instance.StartAsHost();
-                    loginPanel.SetActive(false);
-                    signupPanel.SetActive(false);
                 }
                 else if (clickedButton == loginButtons[1])
                 {
                     GameManager.Instance.StartAsClient();
-                    loginPanel.SetActive(false);
-                    signupPanel.SetActive(false);
                 }
+        
+                // Hide UI panels
+                loginPanel.SetActive(false);
+                signupPanel.SetActive(false);
             }
             else
             {

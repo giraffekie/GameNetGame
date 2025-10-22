@@ -14,10 +14,16 @@ namespace Resources.General.Scripts
 
         [Header("Game Settings")]
         [SerializeField] private GameMode currentGameMode;
+        [SerializeField] private int gameSceneBuildIndex = 1;
+        [SerializeField] private NetworkObject playerPrefab;
 
         private void Awake()
         {
-            if (Instance == null) Instance = this;
+            if (Instance == null)
+            {
+                Instance = this;
+                DontDestroyOnLoad(this);
+            }
             else
             {
                 Destroy(gameObject);
@@ -48,27 +54,33 @@ namespace Resources.General.Scripts
             _runner = gameObject.AddComponent<NetworkRunner>();
             _runner.ProvideInput = true;
 
+            // Start directly in the game scene
             await _runner.StartGame(new StartGameArgs()
             {
                 GameMode = mode,
                 SessionName = "TestRoom",
-                Scene = SceneRef.FromIndex(SceneManager.GetActiveScene().buildIndex),
+                Scene = SceneRef.FromIndex(gameSceneBuildIndex),
                 PlayerCount = 2,
                 SceneManager = gameObject.AddComponent<NetworkSceneManagerDefault>()
             });
 
-            Debug.Log($"[GameManager] Started game in {mode} mode");
+            Debug.Log($"[GameManager] Started game in {mode} mode in scene: {gameSceneBuildIndex}");
+        }
 
-            // Wait until local player is actually spawned
-            while (_runner.LocalPlayer == PlayerRef.None)
+        // Implement OnPlayerJoined to spawn player prefab
+        public void OnPlayerJoined(NetworkRunner runner, PlayerRef player)
+        {
+            Debug.Log($"[GameManager] Player {player} joined");
+            
+            if (runner.IsServer && playerPrefab != null)
             {
-                await System.Threading.Tasks.Task.Delay(50);
+                // Spawn the player prefab for the joining player
+                NetworkObject networkPlayerObject = runner.Spawn(playerPrefab, Vector3.zero, Quaternion.identity, player);
+                Debug.Log($"[GameManager] Spawned player object for {player}");
             }
         }
 
-
         #region INetworkRunnerCallbacks (empty)
-        public void OnPlayerJoined(NetworkRunner runner, PlayerRef player){ }
         public void OnPlayerLeft(NetworkRunner runner, PlayerRef player) { }
         public void OnInput(NetworkRunner runner, NetworkInput input) { }
         public void OnInputMissing(NetworkRunner runner, PlayerRef player, NetworkInput input) { }
